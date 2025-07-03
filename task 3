@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling if content slightly overflows */
+        }
+        .container {
+            background-color: #ffffff; /* White background for the game container */
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* Deeper shadow */
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 90%;
+            max-width: 450px; /* Max width for larger screens */
+        }
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 0.5rem; /* Smaller gap */
+            width: 100%;
+            max-width: 300px; /* Max width for the grid to keep cells square */
+            aspect-ratio: 1 / 1; /* Ensures the grid remains square */
+        }
+        .cell {
+            width: 100%;
+            height: 100%;
+            background-color: #e2e8f0; /* Lighter cell background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 4rem; /* Larger text for X/O */
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 0.75rem; /* Rounded corners for cells */
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            color: #334155; /* Darker text color */
+        }
+        .cell:hover {
+            background-color: #cbd5e1; /* Slightly darker on hover */
+            transform: scale(1.02); /* Slight scale on hover */
+        }
+        .cell.x {
+            color: #ef4444; /* Red for X */
+        }
+        .cell.o {
+            color: #3b82f6; /* Blue for O */
+        }
+        .status {
+            font-size: 1.5rem; /* Larger status text */
+            margin-bottom: 1.5rem;
+            font-weight: bold;
+            color: #1e293b; /* Darker text for status */
+            text-align: center;
+        }
+        .reset-button {
+            padding: 0.75rem 1.5rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 0.75rem; /* Rounded button */
+            background-color: #10b981; /* Green button */
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .reset-button:hover {
+            background-color: #059669; /* Darker green on hover */
+            transform: translateY(-2px); /* Slight lift on hover */
+        }
+        .reset-button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold mb-6 text-gray-800">Tic-Tac-Toe</h1>
+        <div id="status" class="status mb-6">Player X's Turn</div>
+        <div class="game-grid mb-8" id="game-grid">
+            <div class="cell" data-cell-index="0"></div>
+            <div class="cell" data-cell-index="1"></div>
+            <div class="cell" data-cell-index="2"></div>
+            <div class="cell" data-cell-index="3"></div>
+            <div class="cell" data-cell-index="4"></div>
+            <div class="cell" data-cell-index="5"></div>
+            <div class="cell" data-cell-index="6"></div>
+            <div class="cell" data-cell-index="7"></div>
+            <div class="cell" data-cell-index="8"></div>
+        </div>
+        <button id="reset-button" class="reset-button">Reset Game</button>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const gameGrid = document.getElementById('game-grid');
+        const cells = document.querySelectorAll('.cell');
+        const statusDisplay = document.getElementById('status');
+        const resetButton = document.getElementById('reset-button');
+
+        // Game state variables
+        let currentPlayer = 'X'; // 'X' or 'O'
+        let gameBoard = ['', '', '', '', '', '', '', '', '']; // Represents the 9 cells
+        let gameActive = true; // True if the game is ongoing, false otherwise
+
+        // Winning conditions (indices of cells that form a win)
+        const winningConditions = [
+            [0, 1, 2], // Top row
+            [3, 4, 5], // Middle row
+            [6, 7, 8], // Bottom row
+            [0, 3, 6], // Left column
+            [1, 4, 7], // Middle column
+            [2, 5, 8], // Right column
+            [0, 4, 8], // Diagonal (top-left to bottom-right)
+            [2, 4, 6]  // Diagonal (top-right to bottom-left)
+        ];
+
+        /**
+         * Initializes the game by setting up event listeners and resetting the board.
+         * This function is called once when the script loads.
+         */
+        function initializeGame() {
+            cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+            resetButton.addEventListener('click', handleResetGame);
+            updateStatusDisplay(`${currentPlayer}'s Turn`); // Initial status display
+        }
+
+        /**
+         * Updates the text content of the status display.
+         * @param {string} message - The message to display.
+         */
+        function updateStatusDisplay(message) {
+            statusDisplay.textContent = message;
+        }
+
+        /**
+         * Handles a click event on a game cell.
+         * @param {Event} clickedCellEvent - The click event object.
+         */
+        function handleCellClick(clickedCellEvent) {
+            // Get the clicked cell element
+            const clickedCell = clickedCellEvent.target;
+            // Get the index of the clicked cell from its data attribute
+            const clickedCellIndex = parseInt(clickedCell.getAttribute('data-cell-index'));
+
+            // Check if the cell is already filled or if the game is not active
+            if (gameBoard[clickedCellIndex] !== '' || !gameActive) {
+                return; // Do nothing if the cell is taken or game is over
+            }
+
+            // Update the game board and the UI
+            gameBoard[clickedCellIndex] = currentPlayer;
+            clickedCell.textContent = currentPlayer;
+            clickedCell.classList.add(currentPlayer.toLowerCase()); // Add 'x' or 'o' class for styling
+
+            // Check for game result (win or draw)
+            checkGameResult();
+        }
+
+        /**
+         * Checks if the current player has won or if the game is a draw.
+         */
+        function checkGameResult() {
+            let roundWon = false;
+
+            // Iterate through all winning conditions
+            for (let i = 0; i < winningConditions.length; i++) {
+                const winCondition = winningConditions[i];
+                // Get the values in the cells corresponding to the current winning condition
+                let a = gameBoard[winCondition[0]];
+                let b = gameBoard[winCondition[1]];
+                let c = gameBoard[winCondition[2]];
+
+                // If any cell is empty, this condition cannot be met yet
+                if (a === '' || b === '' || c === '') {
+                    continue;
+                }
+                // Check if all three cells match the current player's marker
+                if (a === b && b === c) {
+                    roundWon = true;
+                    break; // A win condition is met, no need to check further
+                }
+            }
+
+            // If the current player has won
+            if (roundWon) {
+                updateStatusDisplay(`Player ${currentPlayer} Wins!`);
+                gameActive = false; // End the game
+                return;
+            }
+
+            // Check for a draw: if no empty cells left and no winner
+            let roundDraw = !gameBoard.includes('');
+            if (roundDraw) {
+                updateStatusDisplay('Game Draw!');
+                gameActive = false; // End the game
+                return;
+            }
+
+            // If no win and no draw, switch to the next player
+            switchPlayer();
+        }
+
+        /**
+         * Switches the current player from 'X' to 'O' or vice-versa.
+         * Updates the status display to reflect the new current player.
+         */
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            updateStatusDisplay(`Player ${currentPlayer}'s Turn`);
+        }
+
+        /**
+         * Resets the game to its initial state.
+         * Clears the board, resets player, sets game active, and clears cell content/styling.
+         */
+        function handleResetGame() {
+            currentPlayer = 'X'; // Start with X again
+            gameBoard = ['', '', '', '', '', '', '', '', '']; // Clear the board
+            gameActive = true; // Set game to active
+            updateStatusDisplay(`Player ${currentPlayer}'s Turn`); // Update status
+
+            // Clear text content and classes from all cells
+            cells.forEach(cell => {
+                cell.textContent = '';
+                cell.classList.remove('x', 'o'); // Remove any 'x' or 'o' classes
+            });
+        }
+
+        // Initialize the game when the script loads
+        document.addEventListener('DOMContentLoaded', initializeGame);
+    </script>
+</body>
+</html>
